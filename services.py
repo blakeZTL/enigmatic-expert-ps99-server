@@ -120,13 +120,15 @@ def get_clan(
                 point_contributions.append(point_record)
         battle_record = apiBattle(
             BattleID=(
-                battle_api_record["BattleID"] if "BattleID" in battle else "Unknown"
+                battle_api_record["BattleID"]
+                if "BattleID" in battle_api_record
+                else "Unknown"
             ),
-            Points=battle_api_record["Points"] if "Points" in battle else 0,
+            Points=battle_api_record["Points"] if "Points" in battle_api_record else 0,
             PointContributions=point_contributions,
             EarnedMedal=(
                 battle_api_record["EarnedMedal"]
-                if "EarnedMedal" in battle
+                if "EarnedMedal" in battle_api_record
                 else "Unknown"
             ),
         )
