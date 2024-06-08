@@ -1,7 +1,6 @@
 from dataclasses import asdict, dataclass
 from typing import List, Dict
 from datetime import datetime
-from database import get_db
 import requests
 from google.cloud.firestore import Client, CollectionReference, DocumentReference
 
@@ -13,10 +12,12 @@ class apiClanTotal:
     Members: int
     Points: int
 
+
 @dataclass
 class apiPointContribution:
     UserID: int
     Points: int
+
 
 @dataclass
 class apiBattle:
@@ -25,10 +26,19 @@ class apiBattle:
     PointContributions: List[apiPointContribution]
     EarnedMedal: str
 
+
 @dataclass
 class apiDiamondContribution:
     UserID: int
     Diamonds: int
+
+
+@dataclass
+class apiClanMember:
+    UserID: int
+    PermissionLevel: int
+    JoinTime: int
+
 
 @dataclass
 class apiClan:
@@ -36,7 +46,7 @@ class apiClan:
     Name: str
     Icon: str
     Desc: str
-    Members: List[Dict]
+    Members: List[apiClanMember]
     DepositedDiamonds: int
     DiamondContributions: List[apiDiamondContribution]
     Status: str
@@ -71,7 +81,7 @@ def write_clan_totals(clan_totals: List[apiClanTotal], db: Client) -> bool:
     collection: CollectionReference = db.collection("clan_totals")
 
     for clan in clan_totals:
-        key: str = clan.Name +"||"+ str(datetime.now().isoformat())
+        key: str = clan.Name + "||" + str(datetime.now().isoformat())
         doc_ref: DocumentReference = collection.document(key)
         doc_ref.set(asdict(clan))
 
@@ -80,74 +90,129 @@ def write_clan_totals(clan_totals: List[apiClanTotal], db: Client) -> bool:
 
 def get_clan(
     clan_name: str,
-) -> apiClanTotal:
+) -> apiClan:
     url = f"https://biggamesapi.io/api/clan/{clan_name}"
     response = requests.get(url)
     if not response.ok:
         return None
     if "data" not in response.json():
         return None
-    clan = response.json()["data"]
+    api_data: Dict = response.json()["data"]
     deposited_diamonds: List[apiDiamondContribution] = []
-    for member in clan["DiamondContributions"]["AllTime"]["Data"]:
+    for member in api_data["DiamondContributions"]["AllTime"]["Data"]:
         diamond_record = apiDiamondContribution(
-            UserID= member["UserID"], # This is not in the response
-            Diamonds= member["Diamonds"]
+            UserID=member["UserID"],
+            Diamonds=member["Diamonds"],
         )
         deposited_diamonds.append(diamond_record)
     battles: List[apiBattle] = []
-    for _battle, value in clan["Battles"].items(): 
+    for battle in api_data["Battles"]:
+        battle_api_record = api_data["Battles"][battle]
         point_contributions = []
-        for point in value["PointContributions"]:
-            point_record = apiPointContribution(
-                UserID= point["UserID"], # This is not in the response
-                Points= point["Points"]
-            )
-            point_contributions.append(point_record)
+        if "PointContributions" not in battle_api_record:
+            print("No point contributions found.")
+        else:
+            for point in battle_api_record["PointContributions"]:
+                point_record = apiPointContribution(
+                    UserID=point["UserID"],
+                    Points=point["Points"],
+                )
+                point_contributions.append(point_record)
         battle_record = apiBattle(
-            BattleID=value["BattleID"],
-            Points=value["Points"],
+            BattleID=(
+                battle_api_record["BattleID"] if "BattleID" in battle else "Unknown"
+            ),
+            Points=battle_api_record["Points"] if "Points" in battle else 0,
             PointContributions=point_contributions,
-            EarnedMedal=value["EarnedMedal"] if "EarnedMedal" in value else "Unknown"
+            EarnedMedal=(
+                battle_api_record["EarnedMedal"]
+                if "EarnedMedal" in battle
+                else "Unknown"
+            ),
         )
-        battles.append(battle_record)        
-    
+        battles.append(battle_record)
+
+    clan_members: List[apiClanMember] = []
+    for member in api_data["Members"]:
+        clan_members.append(
+            apiClanMember(
+                UserID=member["UserID"],
+                PermissionLevel=member["PermissionLevel"],
+                JoinTime=member["JoinTime"],
+            )
+        )
+
     clan_record = apiClan(
-        Owner=clan["Owner"],
-        Name=clan["Name"],
-        Icon=clan["Icon"],
-        Desc=clan["Desc"],
-        Members=clan["Members"],
-        DepositedDiamonds=clan["DepositedDiamonds"],
+        Owner=api_data["Owner"],
+        Name=api_data["Name"],
+        Icon=api_data["Icon"],
+        Desc=api_data["Desc"],
+        Members=clan_members,
+        DepositedDiamonds=api_data["DepositedDiamonds"],
         DiamondContributions=deposited_diamonds,
-        Status=clan["Status"] if "Status" in clan else "",
-        Battles=clan["Battles"],    
+        Status=api_data["Status"] if "Status" in api_data else "",
+        Battles=battles,
     )
     return clan_record
+
 
 def write_clan(clan: apiClan, db: Client) -> bool:
     if clan is None:
         return False
     collection: CollectionReference = db.collection("clans")
-    key: str = clan.Name +"||"+ str(datetime.now().isoformat())
+    key: str = clan.Name + "||" + str(datetime.now().isoformat())
     doc_ref: DocumentReference = collection.document(key)
     doc_ref.set(asdict(clan))
     return True
 
+
+@dataclass
+class RobloxUser:
+    hasVerifiedBadge: bool
+    id: int
+    name: str
+    displayName: str
+
+
+@dataclass
+class apiRobloxUserData:
+    data: List[RobloxUser]
+
+
+def get_roblox_users_from_api(user_ids: List[int]) -> List[RobloxUser]:
+    url = "https://users.roblox.com/v1/users"
+    json_data = {"userIds": user_ids, "excludeBannedUsers": True}
+    response = requests.post(url, json=json_data)
+    if not response.ok:
+        print(response.text)
+        return []
+    if "data" not in response.json():
+        return []
+    users = []
+    for user in response.json()["data"]:
+        user_record = RobloxUser(
+            hasVerifiedBadge=user["hasVerifiedBadge"],
+            id=user["id"],
+            name=user["name"],
+            displayName=user["displayName"],
+        )
+        users.append(user_record)
+
+    return users
+
+
+def write_roblox_users(users: List[RobloxUser], db: Client) -> bool:
+    if len(users) == 0:
+        return False
+    collection: CollectionReference = db.collection("roblox_users")
+
+    for user in users:
+        key: str = str(user.id)
+        doc_ref: DocumentReference = collection.document(key)
+        doc_ref.set(asdict(user))
+
+    return True
+
+
 if __name__ == "__main__":
-    db = get_db()
-    if db is None:
-        print("Failed to get database.")
-    else:
-        print("Database connected successfully.")
-        clan_totals = get_clan_totals()
-        if write_clan_totals(clan_totals, db):
-            print("Clan totals written to database.")
-        else:
-            print("Failed to write clan totals to database.")
-        for clan in clan_totals:
-            clan = get_clan(clan.Name)
-            if write_clan(clan, db):
-                print("Clan written to database.")
-            else:
-                print("Failed to write clan to database.")
+    exit()
