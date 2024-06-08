@@ -110,7 +110,7 @@ def get_clan(
         battle_api_record = api_data["Battles"][battle]
         point_contributions = []
         if "PointContributions" not in battle_api_record:
-            print("No point contributions found.")
+            print(f"No point contributions found for {battle_api_record["BattleID"] if "BattleID" in battle_api_record else "Unknown"}")
         else:
             for point in battle_api_record["PointContributions"]:
                 point_record = apiPointContribution(
