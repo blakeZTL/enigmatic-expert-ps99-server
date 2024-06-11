@@ -143,6 +143,13 @@ def get_clan(
                 JoinTime=member["JoinTime"],
             )
         )
+    clan_members.append(
+        apiClanMember(
+            UserID=api_data["Owner"],
+            PermissionLevel=0,
+            JoinTime=0,
+        )
+    )
 
     clan_record = apiClan(
         Owner=api_data["Owner"],
