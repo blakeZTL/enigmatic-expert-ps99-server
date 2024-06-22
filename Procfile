@@ -1,0 +1,1 @@
+web: uvicorn server:server_app
