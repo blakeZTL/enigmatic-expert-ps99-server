@@ -8,7 +8,7 @@ router = APIRouter()
 
 
 @router.get(
-    "/clan-totals",
+    "/",
     response_description="List all clan totals",
     response_model=List[ClanTotal],
 )
@@ -18,7 +18,7 @@ async def list_clan_totals(request: Request):
 
 
 @router.get(
-    "/clan-totals/{id}",
+    "/{id}",
     response_description="Get a single clan total",
     response_model=ClanTotal,
 )

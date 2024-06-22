@@ -23,6 +23,6 @@ server_app = FastAPI(lifespan=lifespan)
 
 server_app.include_router(roblox_routes, tags=["roblox"], prefix="/roblox-users")
 server_app.include_router(
-    clan_total_routes, tags=["clan-battles"], prefix="/clan-battles"
+    clan_total_routes, tags=["clan-totals"], prefix="/clan-totals"
 )
 server_app.include_router(clan_routes, tags=["clans"], prefix="/clans")
