@@ -1,4 +1,5 @@
 import time
+import os
 from typing import List
 from services import (
     get_clan_totals,
@@ -9,8 +10,10 @@ from services import (
     apiClanTotal,
     RobloxUser,
 )
-from database import Client, get_db
+from database import get_db
 from utils import clear_screen
+from pymongo import database
+from dotenv import load_dotenv
 
 
 class DatabaseError(Exception):
@@ -27,8 +30,10 @@ class UserError(Exception):
 
 def main():
     clear_screen()
+    load_dotenv(dotenv_path=".env")
+    db_name:str = os.getenv('ROBLOX_DB_NAME')
     try:
-        db: Client = get_db()
+        db: database.Database = get_db(db_name)
         if db is None:
             raise DatabaseError("Failed to get database.")
         print("Database connected successfully.")
@@ -37,7 +42,6 @@ def main():
         if not clan_totals:
             raise ClanError("Failed to get clan totals.")
         print("Clan totals fetched successfully.")
-
         clan_names: List[str] = [clan.Name for clan in clan_totals]
         if not clan_names:
             raise ClanError("No clan names found.")

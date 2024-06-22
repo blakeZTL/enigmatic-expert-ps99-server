@@ -1,8 +1,10 @@
 from dataclasses import asdict, dataclass
 from typing import List, Dict
 from datetime import datetime
+import pymongo.collection
 import requests
 from google.cloud.firestore import Client, CollectionReference, DocumentReference
+import pymongo.database
 
 
 @dataclass
@@ -75,15 +77,22 @@ def get_clan_totals(
     return clan_totals
 
 
-def write_clan_totals(clan_totals: List[apiClanTotal], db: Client) -> bool:
+def write_clan_totals(clan_totals: List[apiClanTotal], db: pymongo.database.Database) -> bool:
     if len(clan_totals) == 0:
         return False
-    collection: CollectionReference = db.collection("clan_totals")
-
+    collection: pymongo.collection.Collection = db["clan-totals"]
+    new_clan_totals = []
     for clan in clan_totals:
         key: str = clan.Name + "||" + str(datetime.now().isoformat())
-        doc_ref: DocumentReference = collection.document(key)
-        doc_ref.set(asdict(clan))
+        new_clan_total = {
+            "Name": clan.Name,
+            "DepositedDiamonds": clan.DepositedDiamonds,
+            "Members": clan.Members,
+            "Points": clan.Points,
+            "_id": key
+        }
+        new_clan_totals.append(new_clan_total)
+    collection.insert_many(new_clan_totals)
 
     return True
 
@@ -110,7 +119,7 @@ def get_clan(
         battle_api_record = api_data["Battles"][battle]
         point_contributions = []
         if "PointContributions" not in battle_api_record:
-            print(f"No point contributions found for {battle_api_record["BattleID"] if "BattleID" in battle_api_record else "Unknown"}")
+            print(f"No point contributions found for {battle_api_record['BattleID'] if 'BattleID' in battle_api_record else 'Unknown'}")
         else:
             for point in battle_api_record["PointContributions"]:
                 point_record = apiPointContribution(
@@ -165,13 +174,24 @@ def get_clan(
     return clan_record
 
 
-def write_clan(clan: apiClan, db: Client) -> bool:
+def write_clan(clan: apiClan, db: pymongo.database.Database) -> bool:
     if clan is None:
         return False
-    collection: CollectionReference = db.collection("clans")
+    collection: pymongo.collection.Collection = db["clans"]
     key: str = clan.Name + "||" + str(datetime.now().isoformat())
-    doc_ref: DocumentReference = collection.document(key)
-    doc_ref.set(asdict(clan))
+    new_clans_record = {
+        "Owner": clan.Owner,
+        "Name": clan.Name,
+        "Icon": clan.Icon,
+        "Desc": clan.Desc,
+        "Members": [asdict(member) for member in clan.Members],
+        "DepositedDiamonds": clan.DepositedDiamonds,
+        "DiamondContributions": [asdict(diamond) for diamond in clan.DiamondContributions],
+        "Status": clan.Status,
+        "Battles": [asdict(battle) for battle in clan.Battles],
+        "_id": key
+    }
+    collection.insert_one(new_clans_record)
     return True
 
 
@@ -210,15 +230,24 @@ def get_roblox_users_from_api(user_ids: List[int]) -> List[RobloxUser]:
     return users
 
 
-def write_roblox_users(users: List[RobloxUser], db: Client) -> bool:
+def write_roblox_users(users: List[RobloxUser], db: pymongo.database.Database) -> bool:
     if len(users) == 0:
         return False
-    collection: CollectionReference = db.collection("roblox_users")
-
+    collection: pymongo.collection.Collection = db["users"]
+    users_records = []
     for user in users:
-        key: str = str(user.id)
-        doc_ref: DocumentReference = collection.document(key)
-        doc_ref.set(asdict(user))
+        # key: str = str(user.id)
+        # doc_ref: DocumentReference = collection.document(key)
+        # doc_ref.set(asdict(user))
+        new_user ={
+            "hasVerifiedBadge": user.hasVerifiedBadge,
+            "id": user.id,
+            "name": user.name,
+            "displayName": user.displayName,
+            "_id": user.id
+        }
+        users_records.append(new_user)
+    collection.insert_many(users_records)
 
     return True
 

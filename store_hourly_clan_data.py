@@ -1,4 +1,6 @@
 from typing import List
+import os
+from dotenv import load_dotenv
 from services import (
     get_clan_totals,
     get_clan,
@@ -7,7 +9,8 @@ from services import (
     apiClan,
 )
 
-from database import Client, get_db
+from database import get_db
+from pymongo import database
 
 
 class DatabaseError(Exception):
@@ -19,7 +22,9 @@ class ClanError(Exception):
 
 
 def main():
-    db: Client = get_db()
+    load_dotenv(dotenv_path=".env")
+    db_name:str = os.getenv('PS99_CLAN_BATTLE_DB_NAME')
+    db: database.Database = get_db(db_name)
     if db is None:
         raise DatabaseError("Failed to get database.")
     print("Database connected successfully.")
