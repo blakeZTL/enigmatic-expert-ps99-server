@@ -1,3 +1,4 @@
+from typing import List
 from pydantic import BaseModel, Field
 
 
@@ -8,8 +9,8 @@ class RobloxUser(BaseModel):
     displayName: str
 
     class Config:
-        allow_population_by_field_name = True
-        schema_extra = {
+        populate_by_name = True
+        json_schema_extra = {
             "example": {
                 "_id": 1,
                 "hasVerifiedBadge": True,
@@ -27,8 +28,8 @@ class ClanTotal(BaseModel):
     Points: int
 
     class Config:
-        allow_population_by_field_name = True
-        schema_extra = {
+        populate_by_name = True
+        json_schema_extra = {
             "example": {
                 "_id": "ClanName||2021-01-01T00:00:00.000000",
                 "Name": "ClanName",
@@ -39,21 +40,84 @@ class ClanTotal(BaseModel):
         }
 
 
+class ClanMember(BaseModel):
+    UserID: int
+    PermissionLevel: int
+    JoinTime: int
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "UserID": 1,
+                "PermissionLevel": 1,
+                "JoinTime": 1,
+            }
+        }
+
+
+class DiamondContribution(BaseModel):
+    UserID: int
+    Diamonds: int
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "UserID": 1,
+                "Diamonds": 1,
+            }
+        }
+
+
+class ClanParticipation(BaseModel):
+    UserID: int
+    Points: int
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "UserID": 1,
+                "Points": 1,
+            }
+        }
+
+
+class ClanBattle(BaseModel):
+    BattleID: str
+    Points: int
+    PointContributions: List[ClanParticipation]
+    EarnedMedal: str
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "BattleID": "BattleName",
+                "Points": 1,
+                "PointContributions": [
+                    {
+                        "UserID": 1,
+                        "Points": 1,
+                    }
+                ],
+                "EarnedMedal": "Gold",
+            }
+        }
+
+
 class Clan(BaseModel):
     id: str = Field(alias="_id")
     Owner: int
     Name: str
     Icon: str
     Desc: str
-    Members: list
+    Members: List[ClanMember]
     DepositedDiamonds: int
-    DiamondContributions: list
+    DiamondContributions: List[DiamondContribution]
     Status: str
-    Battles: list
+    Battles: List[ClanBattle]
 
     class Config:
-        allow_population_by_field_name = True
-        schema_extra = {
+        populate_by_name = True
+        json_schema_extra = {
             "example": {
                 "_id": "ClanName||2021-01-01T00:00:00.000000",
                 "Owner": 1,

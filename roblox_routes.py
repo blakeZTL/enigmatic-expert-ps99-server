@@ -1,7 +1,5 @@
 from fastapi import APIRouter, Body, Request, Response, HTTPException, status
-from fastapi.encoders import jsonable_encoder
 from typing import List
-
 from models import RobloxUser
 
 router = APIRouter()
@@ -13,7 +11,11 @@ router = APIRouter()
     response_model=List[RobloxUser],
 )
 async def list_roblox_users(request: Request):
-    users = request.app.mongodb_client["roblox"]["users"].find({})
+    users = (
+        await request.app.mongodb_client["roblox"]["users"]
+        .find({})
+        .to_list(length=None)
+    )
     return users
 
 
@@ -29,18 +31,3 @@ async def show_roblox_user(id: int, request: Request):
         return user
 
     raise HTTPException(status_code=404, detail=f"Roblox user {id} not found")
-
-
-# @router.post(
-#     "/",
-#     response_description="Add new roblox user",
-#     response_model=RobloxUser,
-#     status_code=status.HTTP_201_CREATED,
-# )
-# async def create_roblox_user(request: Request, user: RobloxUser = Body(...)):
-#     user = jsonable_encoder(user)
-#     new_user = request.app.mongodb_client["roblox"]["users"].insert_one(user)
-#     created_user = request.app.mongodb_client["roblox"]["users"].find_one(
-#         {"_id": new_user.inserted_id}
-#     )
-#     return created_user

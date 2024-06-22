@@ -20,7 +20,7 @@ class ClanError(Exception):
 
 def main():
     load_dotenv(dotenv_path=".env")
-    db_name:str = os.getenv('PS99_CLAN_BATTLE_DB_NAME')
+    db_name: str = os.getenv("CLAN_BATTLE_DB_NAME")
     db: database.Database = get_db(db_name)
     if db is None:
         raise DatabaseError("Failed to get database.")

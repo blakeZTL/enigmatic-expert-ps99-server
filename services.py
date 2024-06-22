@@ -3,8 +3,8 @@ from typing import List, Dict
 from datetime import datetime
 import pymongo.collection
 import requests
-from google.cloud.firestore import Client, CollectionReference, DocumentReference
 import pymongo.database
+from pymongo.results import InsertManyResult
 
 
 @dataclass
@@ -58,8 +58,9 @@ class apiClan:
 def get_clan_totals(
     pageSize: int = 50, sort: str = "Points", sortOrder: str = "desc"
 ) -> List[apiClanTotal]:
+    page = 1
     clan_totals: List[apiClanTotal] = []
-    url = f"https://biggamesapi.io/api/clans?page=1&pageSize={pageSize}&sort={sort}&sortOrder={sortOrder}"
+    url = f"https://biggamesapi.io/api/clans?page={page}&pageSize={pageSize}&sort={sort}&sortOrder={sortOrder}"
     response = requests.get(url)
     if not response.ok:
         return clan_totals
@@ -73,11 +74,33 @@ def get_clan_totals(
             Points=clan["Points"],
         )
         clan_totals.append(clan_record)
+    if "SOUP" in [clan.Name for clan in clan_totals]:
+        return clan_totals
+    page += 1
+    while True:
+        print(f"Fetching page {page} of clans...")
+        url = f"https://biggamesapi.io/api/clans?page={page}&pageSize={pageSize}&sort={sort}&sortOrder={sortOrder}"
+        response = requests.get(url)
+        if not response.ok:
+            return clan_totals
+        if "data" not in response.json():
+            return clan_totals
+        for clan in response.json()["data"]:
+            clan_record = apiClanTotal(
+                Name=clan["Name"],
+                DepositedDiamonds=clan["DepositedDiamonds"],
+                Members=clan["Members"] + 1,
+                Points=clan["Points"],
+            )
+            clan_totals.append(clan_record)
+        if "SOUP" in [clan.Name for clan in clan_totals]:
+            return clan_totals
+        page += 1
 
-    return clan_totals
 
-
-def write_clan_totals(clan_totals: List[apiClanTotal], db: pymongo.database.Database) -> bool:
+def write_clan_totals(
+    clan_totals: List[apiClanTotal], db: pymongo.database.Database
+) -> bool:
     if len(clan_totals) == 0:
         return False
     collection: pymongo.collection.Collection = db["clan-totals"]
@@ -89,10 +112,33 @@ def write_clan_totals(clan_totals: List[apiClanTotal], db: pymongo.database.Data
             "DepositedDiamonds": clan.DepositedDiamonds,
             "Members": clan.Members,
             "Points": clan.Points,
-            "_id": key
+            "_id": key,
         }
         new_clan_totals.append(new_clan_total)
-    collection.insert_many(new_clan_totals)
+
+    results: InsertManyResult = None
+    try:
+        results = collection.insert_many(new_clan_totals, ordered=False)
+    except pymongo.errors.BulkWriteError as _:
+        print("Duplicate key error(s) occurred.")
+    finally:
+        for new_clan_total in new_clan_totals:
+            if (
+                (
+                    results is not None
+                    and results.inserted_ids
+                    and new_clan_total["_id"] not in results.inserted_ids
+                )
+                or not results
+                or results.inserted_ids
+            ):
+                print(f"Failed to insert {new_clan_total['_id']}")
+                collection.update_one(
+                    {"_id": new_clan_total["_id"]},
+                    {"$set": new_clan_total},
+                    upsert=True,
+                )
+                print(f"Updated {new_clan_total['_id']}")
 
     return True
 
@@ -119,7 +165,9 @@ def get_clan(
         battle_api_record = api_data["Battles"][battle]
         point_contributions = []
         if "PointContributions" not in battle_api_record:
-            print(f"No point contributions found for {battle_api_record['BattleID'] if 'BattleID' in battle_api_record else 'Unknown'}")
+            print(
+                f"No point contributions found for {battle_api_record['BattleID'] if 'BattleID' in battle_api_record else 'Unknown'}"
+            )
         else:
             for point in battle_api_record["PointContributions"]:
                 point_record = apiPointContribution(
@@ -186,12 +234,19 @@ def write_clan(clan: apiClan, db: pymongo.database.Database) -> bool:
         "Desc": clan.Desc,
         "Members": [asdict(member) for member in clan.Members],
         "DepositedDiamonds": clan.DepositedDiamonds,
-        "DiamondContributions": [asdict(diamond) for diamond in clan.DiamondContributions],
+        "DiamondContributions": [
+            asdict(diamond) for diamond in clan.DiamondContributions
+        ],
         "Status": clan.Status,
         "Battles": [asdict(battle) for battle in clan.Battles],
-        "_id": key
+        "_id": key,
     }
-    collection.insert_one(new_clans_record)
+    try:
+        collection.insert_one(new_clans_record)
+    except pymongo.errors.DuplicateKeyError as _:
+        print(f"Failed to insert {key}")
+        collection.update_one({"_id": key}, {"$set": new_clans_record})
+
     return True
 
 
@@ -239,15 +294,37 @@ def write_roblox_users(users: List[RobloxUser], db: pymongo.database.Database) -
         # key: str = str(user.id)
         # doc_ref: DocumentReference = collection.document(key)
         # doc_ref.set(asdict(user))
-        new_user ={
+        new_user = {
             "hasVerifiedBadge": user.hasVerifiedBadge,
             "id": user.id,
             "name": user.name,
             "displayName": user.displayName,
-            "_id": user.id
+            "_id": user.id,
         }
         users_records.append(new_user)
-    collection.insert_many(users_records)
+    results: InsertManyResult = None
+    try:
+        results = collection.insert_many(users_records, ordered=False)
+    except pymongo.errors.BulkWriteError as _:
+        print("Duplicate key error(s) occurred.")
+    finally:
+        for user in users_records:
+            if (
+                (
+                    results is not None
+                    and results.inserted_ids
+                    and user["_id"] not in results.inserted_ids
+                )
+                or not results
+                or results.inserted_ids
+            ):
+                print(f"Failed to insert {user['_id']}")
+                collection.update_one(
+                    {"_id": user["_id"]},
+                    {"$set": user},
+                    upsert=True,
+                )
+                print(f"Updated {user['_id']}")
 
     return True
 

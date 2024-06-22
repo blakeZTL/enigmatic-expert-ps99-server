@@ -13,7 +13,11 @@ router = APIRouter()
     response_model=List[ClanTotal],
 )
 async def list_clan_totals(request: Request):
-    clan_totals = request.app.mongodb_client["clan-battles"]["clan-totals"].find({})
+    clan_totals = (
+        await request.app.mongodb_client["clan-battles"]["clan-totals"]
+        .find({})
+        .to_list(length=None)
+    )
     return clan_totals
 
 
@@ -31,18 +35,3 @@ async def show_clan_total(id: str, request: Request):
         return clan_total
 
     raise HTTPException(status_code=404, detail=f"Clan total {id} not found")
-
-
-# @router.post(
-#     "/",
-#     response_description="Add new clan total",
-#     response_model=ClanTotal,
-#     status_code=status.HTTP_201_CREATED,
-# )
-# async def create_clan_total(request: Request, clan_total: ClanTotal = Body(...)):
-#     clan_total = jsonable_encoder(clan_total)
-#     new_clan_total = request.app.database["clan_totals"].insert_one(clan_total)
-#     created_clan_total = request.app.database["clan_totals"].find_one(
-#         {"_id": new_clan_total.inserted_id}
-#     )
-#     return created_clan_total
