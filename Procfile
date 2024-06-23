@@ -1,1 +1,1 @@
-web: uvicorn server:server_app
+web: uvicorn server:server_app --host 0.0.0.0 --port ${PORT:-8000}
