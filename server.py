@@ -1,7 +1,8 @@
 import logging
 from contextlib import asynccontextmanager
+import os
 from fastapi import FastAPI
-from dotenv import dotenv_values
+from dotenv import dotenv_values, load_dotenv
 from pymongo import MongoClient
 from roblox_routes import router as roblox_routes
 from clan_total_routes import router as clan_total_routes
@@ -21,15 +22,14 @@ origins = [
     "http://localhost:8000",
 ]
 
-
-config = dotenv_values(".env")
+load_dotenv(dotenv_path=".env")
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    server_app.mongodb_client = AsyncIOMotorClient(config["ATLAS_URI"])
+    server_app.mongodb_client = AsyncIOMotorClient(os.getenv("ATLAS_URI"))
     print("Connected to the MongoDB database!")
     yield
     print("Closing the MongoDB database connection.")
