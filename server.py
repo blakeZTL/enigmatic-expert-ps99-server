@@ -20,6 +20,7 @@ origins = [
     "ps99clanbattlestats.io",
     "http://localhost:5173",
     "http://localhost:8000",
+    "https://www.enigmaticexpert.gg",
 ]
 
 load_dotenv(dotenv_path=".env")
