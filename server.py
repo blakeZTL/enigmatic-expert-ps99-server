@@ -2,13 +2,13 @@ import logging
 from contextlib import asynccontextmanager
 import os
 from fastapi import FastAPI
-from dotenv import dotenv_values, load_dotenv
-from pymongo import MongoClient
+from dotenv import load_dotenv
 from roblox_routes import router as roblox_routes
 from clan_total_routes import router as clan_total_routes
 from clan_routes import router as clan_routes
 from fastapi.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
+import httpx
 
 origins = [
     "https://hidden-caverns-01384-1c5c4dad7960.herokuapp.com",
@@ -32,9 +32,12 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     server_app.mongodb_client = AsyncIOMotorClient(os.getenv("ATLAS_URI"))
     print("Connected to the MongoDB database!")
+    server_app.http_client = httpx.AsyncClient()
+
     yield
     print("Closing the MongoDB database connection.")
     server_app.mongodb_client.close()
+    await server_app.http_client.aclose()
 
 
 server_app = FastAPI(lifespan=lifespan)

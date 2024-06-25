@@ -20,6 +20,22 @@ class RobloxUser(BaseModel):
         }
 
 
+class RobloxUserWithUsername(RobloxUser):
+    requestedUsername: str
+    id: int
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "id": 1,
+                "hasVerifiedBadge": True,
+                "name": "test",
+                "displayName": "Test",
+                "requestedUsername": "Test",
+            }
+        }
+
+
 class ClanTotal(BaseModel):
     id: str = Field(alias="_id")
     Name: str
