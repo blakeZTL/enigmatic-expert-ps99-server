@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta
 from fastapi import APIRouter, Body, Request, Response, HTTPException, status
 from fastapi.encoders import jsonable_encoder
 from typing import List
@@ -13,9 +14,25 @@ router = APIRouter()
     response_model=List[ClanTotal],
 )
 async def list_clan_totals(request: Request):
+    # Define the time threshold
+    two_weeks_ago = datetime.now() - timedelta(weeks=2)
+
+    # Query to filter records
+    query = {
+        "$expr": {
+            "$gte": [
+                {
+                    "$dateFromString": {
+                        "dateString": {"$arrayElemAt": [{"$split": ["$_id", "||"]}, 1]}
+                    }
+                },
+                two_weeks_ago,
+            ]
+        }
+    }
     clan_totals = (
         await request.app.mongodb_client["clan-battles"]["clan-totals"]
-        .find({})
+        .find(query)
         .to_list(length=None)
     )
     return clan_totals
