@@ -1,6 +1,21 @@
 from typing import List
 from pydantic import BaseModel, Field
 
+class RobloxAvatar(BaseModel):
+    targetId: int
+    state: str
+    imageUrl: str
+    version: str
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "targetId": 1,
+                "state": "R15",
+                "imageUrl": "https://www.roblox.com/asset/?id=1",
+                "version": "1",
+            }
+        }
 
 class RobloxUser(BaseModel):
     id: int = Field(alias="_id")
