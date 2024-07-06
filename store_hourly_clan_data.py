@@ -11,6 +11,7 @@ from services import (
 
 from database import get_db
 from pymongo import database
+from utils import is_during_active_battle
 
 
 class DatabaseError(Exception):
@@ -22,6 +23,9 @@ class ClanError(Exception):
 
 
 def main():
+    if not is_during_active_battle():
+        print("Not during active battle.")
+        return
     load_dotenv(dotenv_path=".env")
     db_name: str = os.getenv("CLAN_BATTLE_DB_NAME")
     db: database.Database = get_db(db_name)
